@@ -1,4 +1,4 @@
-Headers to be used in reverse tool
+Headers that could be used in reverse engineering.
 ===
 
 # Ghidra
