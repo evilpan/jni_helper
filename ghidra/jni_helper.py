@@ -1,6 +1,9 @@
 # Load JNI signature from JSON
 # @author evilpan (https://evilpan.com/)
 # @category JNI
+# @toolbar
+# @menupath
+
 import os
 import json
 import time
@@ -14,8 +17,19 @@ from ghidra.program.model.listing import ParameterImpl
 from ghidra.program.model.listing import ReturnParameterImpl
 
 
-def log(fmt, *args, **kwargs):
+def log(fmt, *args):
     print "[+]", fmt % args
+
+
+def load_methods():
+    sigfile = askFile("Select json signature file", "Load").getAbsolutePath()
+    log("loading signature file: %s", sigfile)
+
+    with open(sigfile, 'r') as f:
+        infos = json.load(f)
+
+    log("loaded %d methods from JSON", len(infos))
+    return infos
 
 
 class TypeUtil(object):
@@ -24,9 +38,9 @@ class TypeUtil(object):
         self.plugin = state.getTool().getService(DataTypeManagerService)
         self.manager = None
         for m in self.plugin.getDataTypeManagers():
-            log("manager: %s", m.getName())
+            # log("manager: %s", m.getName())
             if m.getName() == self.namespace:
-                log("JNI DataTypeManager already loaded: %s", m)
+                log("JNI DataTypeManager already loaded: %s", m.getName())
                 self.manager = m
                 break
         if self.manager is None:
@@ -91,17 +105,6 @@ class TypeUtil(object):
                             SourceType.USER_DEFINED, params);
 
 
-def load_methods():
-    sigfile = askFile("Select json signature file", "Load").getAbsolutePath()
-    log("loading signature file: %s", sigfile)
-
-    with open(sigfile, 'r') as f:
-        infos = json.load(f)
-
-    log("loaded %d methods from JSON", len(infos))
-    return infos
-
-
 def main():
     u = TypeUtil()
     methods = load_methods()
@@ -122,6 +125,6 @@ def main():
 
     log("ignore %d symbols", len(skipped))
     for addr, name in skipped:
-        log("> 0x%s %s", addr, name)
+        log("- 0x%s %s", addr, name)
 
 main()
