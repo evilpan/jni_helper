@@ -1,12 +1,15 @@
-ghidra:
-	install -d ${HOME}/ghidra_scripts/data
-	install -m 644 ghidra/jni_helper.py ${HOME}/ghidra_scripts/
-	install -m 644 headers/jni.h.gdt ${HOME}/ghidra_scripts/data/jni.h.gdt
+jni:
+	make -C JadxFindJNI
 
-ida:
-	echo "TODO"
+demo:
+	make -C demo
 
-r2:
-	echo "TODO"
+dist: jni
+	zip JadxFindJNI.zip JadxFindJNI/JadxFindJNI.jar JadxFindJNI/lib/*.jar
 
-.PHONY: ghidra
+clean:
+	make -C JadxFindJNI clean
+	make -C demo clean
+	rm -rf JadxFindJNI.zip
+
+.PHONY: jni demo clean dist

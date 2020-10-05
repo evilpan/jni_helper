@@ -1,14 +1,16 @@
 JNI Helper for Ghidra
 ===
 
-Install:
+# Install
+
 ```sh
 $ make install
 ```
 
-Load:
+# Load
+
 ```
-Window -> Script Manager -> Run Script jni_helper.py 
+Window -> Script Manager -> jni_helper.py (Run Script)
 ```
 
 Logging:
