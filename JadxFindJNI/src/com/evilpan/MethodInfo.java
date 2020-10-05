@@ -17,11 +17,11 @@ public class MethodInfo {
         argumentTypes = new ArrayList<>();
         StringBuilder argumentSignatureBuilder = new StringBuilder();
         for (ArgType argument : method.getArguments()) {
-            argumentTypes.add(parseArgumentType(argument));
-            argumentSignatureBuilder.append(parseArgumentSignature(argument));
+            argumentTypes.add(type2str(argument));
+            argumentSignatureBuilder.append(type2sig(argument));
         }
         argumentSignature = argumentSignatureBuilder.toString();
-        returnType = parseArgumentType(method.getReturnType());
+        returnType = type2str(method.getReturnType());
         isStatic = method.getAccessFlags().isStatic();
     }
 
@@ -65,26 +65,27 @@ public class MethodInfo {
 		return sb.toString();
 	}
 
-    private static String parseArgumentType(ArgType argument) {
+    private static String type2str(ArgType tp) {
         String type;
-        if (argument.isPrimitive()) {
-            type = convertPrimitive(argument);
-        } else if (argument.isArray()) {
-            type = convertArray(argument);
-        } else if (argument.toString().equals("Java.lang.String")) {
+        if (tp.isPrimitive()) {
+            type = convertPrimitive(tp);
+        } else if (tp.isArray()) {
+            type = convertArray(tp);
+        } else if (tp.toString().equals("java.lang.String")) {
             type = "jstring";
         } else {
             type = "jobject";
+            // System.out.println("[-] treat " + tp.toString() + " as jobject");
         }
         return type;
     }
 
-    private static String parseArgumentSignature(ArgType argument) {
+    private static String type2sig(ArgType argument) {
         String type;
         if (argument.isPrimitive()) {
             type = convertPrimitiveSignature(argument);
         } else if (argument.isArray()) {
-            type = "[" + parseArgumentSignature(argument.getArrayRootElement());
+            type = "[" + type2sig(argument.getArrayRootElement());
         } else {
             type = "L" + argument.getObject().replaceAll("\\.", "/") + ";";
         }
