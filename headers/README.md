@@ -1,5 +1,7 @@
-Headers that could be used in reverse engineering.
+JNI Helper headers
 ===
+
+Headers that could be used for reverse engineering.
 
 # Ghidra
 
@@ -28,3 +30,15 @@ parse option:
 # IDA-Pro
 
 File -> Load File -> Parse C Header File
+
+# Radare2
+
+```sh
+r2> to?
+Usage: to[...]
+| to -        Open cfg.editor to load types
+| to <path>   Load types from C header file
+| tos <path>  Load types from parsed Sdb database
+```
+
+Use [../r2/jni.h](../r2/jni.h) instead.
