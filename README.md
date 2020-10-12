@@ -1,12 +1,14 @@
 JNI Helper
 ===
 
-Find JNI function signatures from APK and load to reverse tools.
+![CI](https://github.com/evilpan/jni_helper/workflows/CI/badge.svg)
 
-# Usage
+Find JNI function signatures in APK and apply to reverse tools.
 
-1. use [JadxFindJNI.jar](JadxFindJNI) to generate signature.json
-2. load signature.json into Ghidra/IDA/Radare2
+# Basic Usage
+
+1. Use [JadxFindJNI.jar](JadxFindJNI) to generate signature.json
+2. Load signature.json into Ghidra/IDA/Radare2
 
 ## JadxFindJNI.jar
 
@@ -25,6 +27,8 @@ Usage: JadxFindJNI.jar <file.apk> <output.json>
 
 ## Ghidra
 
+See [Ghidra](./ghidra)
+
 Before:
 
 ![g1][g1]
@@ -33,9 +37,10 @@ After:
 
 ![g2][g2]
 
-See [Ghidra](./ghidra)
 
 ## IDA
+
+See [IDA](./ida)
 
 Before:
 
@@ -45,7 +50,6 @@ After:
 
 ![i2][i2]
 
-See [IDA](./ida)
 
 ## Radare2
 
@@ -63,8 +67,15 @@ $ make demo
 # TODO
 
 - [x] support both C/C++ JNI functions
+- [x] support overloaded JNI functions
 - [ ] support [env->RegisterNatives][reg] JNI functions
 
+# LINKS
+
+- [android native-libraries][reg]
+- [安卓逆向之自动化JNI静态分析][blog]
+
+[blog]: https://evilpan.com/2020/10/07/jni-helper/
 [reg]: https://developer.android.com/training/articles/perf-jni#native-libraries
 [ayrx]: https://github.com/Ayrx/JNIAnalyzer
 [dist]: https://github.com/evilpan/jni_helper/releases
