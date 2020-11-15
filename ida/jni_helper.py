@@ -107,7 +107,7 @@ class JNIHelperPlugin(idaapi.plugin_t):
             if fname.startswith('Java_'):
                 info = infos.get(fname)
                 if info is None:
-                    failed.append(name)
+                    failed.append(fname)
                 else:
                     succ += 1
                 apply_signature(ea, info)
