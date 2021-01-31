@@ -24,6 +24,10 @@ cp jni_helper.py %IDA_HOME%\plugins
 Edit -> Plugins -> JNI Helper
 ```
 
+Or you can just `Alt + F7` to run the script.
+
+For `IDA Pro 7.4+`, use `jni_helper3.py` instead.
+
 Logging:
 ```
 [+] plugin init
