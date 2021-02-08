@@ -102,4 +102,26 @@ def main():
     ))
     idc.set_ida_state(st)
 
-main()
+
+class JNIHelperPlugin(idaapi.plugin_t):
+    flags = 0
+    comment = "Import JSON Signature file"
+    help = "Apply JSON Signature to JNI functions"
+    wanted_name = "JNI Helper"
+    wanted_hotkey = "Ctrl-Alt-j"
+    
+    def init(self):
+        log("plugin init")
+        return idaapi.PLUGIN_OK 
+
+    def term(self):
+        log("plugin term")
+
+    def run(self, arg):
+        main()
+
+def PLUGIN_ENTRY():
+    return JNIHelperPlugin()
+
+if __name__ == '__main__':
+    main()

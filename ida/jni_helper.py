@@ -32,11 +32,12 @@ def load_methods():
 def is_jni_header_loaded():
     # not work as expected:
     # return idaapi.get_struc_id('JNIInvokeInterface_') != idaapi.BADADDR
+    ret = None
     try:
-        idc.parse_decl('JNIEnv *env', idc.PT_SILENT)
+        ret = idc.parse_decl('JNIEnv *env', idc.PT_SILENT)
     except Exception as e:
         return False
-    return True
+    return ret is not None
 
 
 def load_jni_header():
@@ -75,6 +76,37 @@ def apply_load_unload(ea, load=True):
     idc.apply_type(ea, prototype_details)
 
 
+def main():
+    if not is_jni_header_loaded():
+        idaapi.warning('Please load jni.h first')
+        load_jni_header()
+    st = idc.set_ida_state(idc.IDA_STATUS_WORK)
+    infos = load_methods()
+    failed = []
+    succ = 0
+    for ea in idautils.Functions():
+        fname = idc.GetFunctionName(ea)
+        if fname.startswith('Java_'):
+            info = infos.get(fname)
+            if info is None:
+                failed.append(fname)
+            else:
+                succ += 1
+            apply_signature(ea, info)
+        if fname == 'JNI_OnLoad':
+            apply_load_unload(ea, True)
+            succ += 1
+        if fname == 'JNI_OnUnload':
+            apply_load_unload(ea, False)
+            succ += 1
+    idaapi.info('JNI functions loaded, {} success. {} failed. \n{}'.format(
+        succ,
+        len(failed),
+        '\n'.join(failed)
+    ))
+    idc.set_ida_state(st)
+
+
 class JNIHelperPlugin(idaapi.plugin_t):
     """
     JNI Helper plugin class
@@ -95,38 +127,13 @@ class JNIHelperPlugin(idaapi.plugin_t):
              IDA batch (no gui) processing mode. Default is 0.
         """
         log("plugin run")
-        if not is_jni_header_loaded():
-            idaapi.warning('Please load jni.h first')
-            load_jni_header()
-        st = idc.set_ida_state(idc.IDA_STATUS_WORK)
-        infos = load_methods()
-        failed = []
-        succ = 0
-        for ea in idautils.Functions():
-            fname = idc.GetFunctionName(ea)
-            if fname.startswith('Java_'):
-                info = infos.get(fname)
-                if info is None:
-                    failed.append(fname)
-                else:
-                    succ += 1
-                apply_signature(ea, info)
-            if fname == 'JNI_OnLoad':
-                apply_load_unload(ea, True)
-                succ += 1
-            if fname == 'JNI_OnUnload':
-                apply_load_unload(ea, False)
-                succ += 1
-        idaapi.info('JNI functions loaded, {} success. {} failed. \n{}'.format(
-            succ,
-            len(failed),
-            '\n'.join(failed)
-        ))
-        idc.set_ida_state(st)
+        main()
 
     def term(self):
         log("plugin term")
 
-
 def PLUGIN_ENTRY():
     return JNIHelperPlugin()
+
+if __name__ == '__main__':
+    main()
