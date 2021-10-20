@@ -7,6 +7,7 @@
 import os
 import json
 import time
+import itertools
 
 from java.io import File
 from ghidra.framework import Application
@@ -26,10 +27,10 @@ def load_methods():
     log("loading signature file: %s", sigfile)
 
     with open(sigfile, 'r') as f:
-        infos = json.load(f)
+        out = json.load(f)
 
-    log("loaded %d methods from JSON", len(infos))
-    return infos
+    log("loaded %d methods from JSON", len(out))
+    return out
 
 
 class TypeUtil(object):
@@ -44,63 +45,37 @@ class TypeUtil(object):
                 self.manager = m
                 break
         if self.manager is None:
-            self.load_jni_h()
+            self.loadJNIHeader()
 
-    def load_jni_h(self):
+    def loadJNIHeader(self):
         gdt =  os.path.join(os.path.expanduser("~"), "ghidra_scripts", "data", self.namespace + ".gdt")
         log("loading ghidra data type from: %s", gdt)
         archive = self.plugin.openArchive(File(gdt), False)
         self.manager = archive.getDataTypeManager()
         log("loaded manager: %s", self.manager.getName())
 
-    def _param(self, fullType, paramName):
-        t = self.manager.getDataType(fullType)
+    def getParam(self, paramType, paramName):
+        t = self.getType(paramType)
         return ParameterImpl(paramName, t, currentProgram, SourceType.USER_DEFINED)
 
-    def _ret(self, fullType):
-        t = self.manager.getDataType(fullType)
-        return ReturnParameterImpl(t, currentProgram)
+    def getRet(self, retType):
+        return ReturnParameterImpl(self.getType(retType), currentProgram)
 
-    def jni_param(self, paramType, paramName):
-        ft = "/" + self.namespace + "/" + paramType
-        return self._param(ft, paramName)
+    def getType(self, typeName):
+        ns = self.namespace
+        if 'void' in typeName:
+            ns = ''
+        fullType = os.path.join("/", ns, typeName)
+        return self.manager.getDataType(fullType)
 
-    def jni_ret(self, retType):
-        ft = "/" + self.namespace + "/" + retType
-        return self._ret(ft)
-
-    def apply_signature(self, addr, info):
+    def applySignature(self, addr, sig):
         func = getFunctionAt(addr)
+        ret, args = sig
         params = []
-        env = self.jni_param("JNIEnv *", "env")
-        if info.get('isStatic'):
-            obj = self.jni_param("jclass", "clazz")
-        else:
-            obj = self.jni_param("jobject", "thiz")
-        params.append(env)
-        params.append(obj)
-        for i, t in enumerate(info.get('argumentTypes', [])):
-            name = 'a' + str(i + 1)
-            params.append(self.jni_param(t, name))
-        ret = self.jni_ret(info.get('returnType', 'void'))
-        func.updateFunction(None, ret,
-                            Function.FunctionUpdateType.DYNAMIC_STORAGE_FORMAL_PARAMS, True,
-                            SourceType.USER_DEFINED, params);
-
-    def apply_load(self, name):
-        func = getFunction(name)
-        if func is None:
-            return
-        log("applying 0x%s %s", func.getSymbol().getAddress(), name)
-        params = [
-            self.jni_param("JavaVM *", "vm"),
-            self._param("/void *", "reserved")
-        ]
-        if name == 'JNI_OnLoad':
-            ret = self.jni_ret("jint")
-        else:
-            ret = self._ret("/void")
-        func.updateFunction(None, ret,
+        for tn in args.split(", "):
+            t, n = tn.rsplit(" ", 1)
+            params.append(self.getParam(t, n))
+        func.updateFunction(None, self.getRet(ret),
                             Function.FunctionUpdateType.DYNAMIC_STORAGE_FORMAL_PARAMS, True,
                             SourceType.USER_DEFINED, params);
 
@@ -109,22 +84,27 @@ def main():
     u = TypeUtil()
     methods = load_methods()
     sm = currentProgram.getSymbolTable()
-    symbols = sm.getSymbolIterator("Java_*", True)
+    direct_symbols = sm.getSymbolIterator("Java_*", True)
+    common_symbols = []
+    for name in ["JNI_OnLoad", "JNI_OnUnload"]:
+        func = getFunction(name)
+        if func:
+            common_symbols.append(func.getSymbol())
     skipped = []
-    for s in symbols:
+    for s in itertools.chain(direct_symbols, common_symbols):
         name = s.getName()
         addr = s.getAddress()
-        info = methods.get(name, None)
-        if info is None:
+        sig = methods.get(name, None)
+        if sig is None:
             skipped.append((addr, name))
             continue
-        log("applying 0x%s %s", addr, name)
-        u.apply_signature(addr, info)
-    u.apply_load("JNI_OnLoad")
-    u.apply_load("JNI_OnUnload")
+        ret, args = sig
+        log("applying 0x%s %8s %s(%s)", addr, ret, name, args)
+        u.applySignature(addr, sig)
 
-    log("ignore %d symbols", len(skipped))
-    for addr, name in skipped:
-        log("- 0x%s %s", addr, name)
+    if skipped:
+        log("ignore %d symbols", len(skipped))
+        for addr, name in skipped:
+            log("- 0x%s %s", addr, name)
 
 main()
