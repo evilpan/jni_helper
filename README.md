@@ -12,6 +12,7 @@ Find JNI function signatures in APK and apply to reverse tools.
 
 ## extract_jni.py
 
+![extract][extract]
 
 Install dependences:
 ```
@@ -90,3 +91,4 @@ $ make demo
 [i2]: https://img-blog.csdnimg.cn/20201005164352403.png
 [g1]: https://img-blog.csdnimg.cn/20201005152933443.png
 [g2]: https://img-blog.csdnimg.cn/20201005153107550.png
+[extract]: https://img-blog.csdnimg.cn/4b2d0ae3e5664ca0ab64d22e0bbddd1a.png
