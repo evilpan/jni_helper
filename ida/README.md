@@ -4,19 +4,16 @@ Load JNI function signatures from JSON file and apply to IDA-Pro
 
 # Install
 
-macOS:
-```sh
-cp jni_helper.py $IDA_HOME/ida.app/Contents/MacOS/plugins
+copy jni_helper.py to IDA plugin dir.
+
+IDA user plugin directory:
+```python
+os.path.join(idaapi.get_user_idadir(), "plugins")
 ```
 
-> e.x. `/Applications/IDA Pro 6.9/idaq.app/Contents/MacOS/plugins/`
-
-Windows:
-```
-cp jni_helper.py %IDA_HOME%\plugins
-```
-
-> e.x. `C:\Program Files (x86)\IDA 6.9\plugins`
+General plugin directory:
+- macOS: $IDA_HOME/ida.app/Contents/MacOS/plugins
+- Windows: %IDA_HOME%\plugins
 
 # Load
 

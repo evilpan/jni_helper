@@ -40,34 +40,14 @@ def load_jni_header():
     idaapi.idc_parse_types(jni_h, idc.PT_FILE)
 
 
-def apply_signature(ea, info):
+def apply_signature(ea, sig):
     name = idc.get_func_name(ea)
-    if info is None:
-        log('WARN: no info found for %s', name)
-        return
+    ret, args = sig
     log('apply 0x%x %s', ea, name)
-    decl = '{} {}(JNIEnv* env, '.format(info['returnType'], name)
-    if info['isStatic']:
-        decl += 'jclass clazz'
-    else:
-        decl += 'jobject thiz'
-    for idx, atype in enumerate(info['argumentTypes']):
-        decl += ', {} arg{}'.format(atype, idx + 1)
-    decl += ')'
+    decl = '{} {}({})'.format(ret, name, args)
     # log(decl)
     prototype_details = idc.parse_decl(decl, idc.PT_SILENT)
     # idc.set_name(ea, name)
-    idc.apply_type(ea, prototype_details)
-
-
-def apply_load_unload(ea, load=True):
-    name = idc.get_func_name(ea)
-    log('apply 0x%x %s', ea, name)
-    decl = "{} {}(JavaVM *vm, void *reserved)".format(
-        "jint" if load else "void",
-        "JNI_OnLoad" if load else "JNI_OnUnload"
-    )
-    prototype_details = idc.parse_decl(decl, idc.PT_SILENT)
     idc.apply_type(ea, prototype_details)
 
 
@@ -82,19 +62,13 @@ def main():
     succ = 0
     for ea in idautils.Functions():
         fname = idc.get_func_name(ea)
-        if fname.startswith('Java_'):
-            info = infos.get(fname)
-            if info is None:
+        if fname.startswith('Java_') or fname in ['JNI_OnLoad', 'JNI_OnUnload']:
+            sig = infos.get(fname)
+            if sig is None:
                 failed.append(name)
             else:
                 succ += 1
-            apply_signature(ea, info)
-        if fname == 'JNI_OnLoad':
-            apply_load_unload(ea, True)
-            succ += 1
-        if fname == 'JNI_OnUnload':
-            apply_load_unload(ea, False)
-            succ += 1
+                apply_signature(ea, sig)
     idaapi.info('JNI functions loaded, {} success. {} failed. \n{}'.format(
         succ,
         len(failed),
