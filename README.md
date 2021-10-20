@@ -36,27 +36,18 @@ optional arguments:
 
 See [Ghidra](./ghidra)
 
-Before:
-
-![g1][g1]
-
-After:
-
-![g2][g2]
+Before      |  After    
+:----------:|:------------:
+![g1][g1]   |  ![g2][g2]
 
 
 ## IDA
 
 See [IDA](./ida)
 
-Before:
-
-![i1][i1]
-
-After:
-
-![i2][i2]
-
+Before      |  After    
+:----------:|:------------:
+![i1][i1]   |  ![i2][i2]
 
 ## Radare2
 
@@ -64,17 +55,13 @@ After:
 
 # Demo
 
-Tested with [app-debug.apk](./demo).
-
-```sh
-$ make demo
-```
-
+Tested with demo APK: [app-debug.apk](./demo)
 
 # TODO
 
 - [x] support both C/C++ JNI functions
 - [x] support overloaded JNI functions
+- [x] remove Jadx dependence, all in Python
 - [ ] support [env->RegisterNatives][reg] JNI functions
 
 # LINKS
