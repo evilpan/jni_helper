@@ -7,22 +7,28 @@ Find JNI function signatures in APK and apply to reverse tools.
 
 # Basic Usage
 
-1. Use [JadxFindJNI.jar](JadxFindJNI) to generate signature.json
+1. Use [extract_jni.py](./extract_jni.py) to generate signature.json
 2. Load signature.json into Ghidra/IDA/Radare2
 
-## JadxFindJNI.jar
+## extract_jni.py
 
-Build:
-```
-$ make jni
-```
 
-Or you can just download the [latest release][dist].
+Install dependences:
+```
+pip3 install -r requirements.txt
+```
 
 Usage:
 ```sh
-$ java -jar JadxFindJNI/JadxFindJNI.jar
-Usage: JadxFindJNI.jar <file.apk> <output.json>
+$ ./extract_jni.py -h
+usage: extract_jni.py [-h] [-o OUTFILE] apk
+
+positional arguments:
+  apk         /path/to/apk
+
+optional arguments:
+  -h, --help  show this help message and exit
+  -o OUTFILE  save JNI methods as formatted json file
 ```
 
 ## Ghidra
@@ -53,7 +59,7 @@ After:
 
 ## Radare2
 
-See [Radare2](./r2)
+> WIP, see [Radare2](./r2)
 
 # Demo
 
