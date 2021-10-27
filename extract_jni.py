@@ -1,17 +1,34 @@
 #!/usr/bin/env python3
 import json
+import multiprocessing
 from datetime import datetime
-from collections import Counter
+from collections import Counter, namedtuple
 from typing import Iterable, Iterator, List, Dict
 
-from androguard.misc import APK
 from androguard.core.analysis.analysis import Analysis
 from androguard.core.bytecodes.dvm import DalvikVMFormat, ClassDefItem, EncodedMethod
 from androguard.decompiler.dad.util import TYPE_DESCRIPTOR
 
 from rich.progress import track
 from rich.console import Console
+from rich.progress import (
+    BarColumn,
+    Progress,
+    TextColumn,
+    TimeRemainingColumn,
+    TimeElapsedColumn,
+)
 
+DexFile = namedtuple('DexFile', ['name', 'data'])
+
+JNI_COMMON = {
+    "JNI_OnLoad": [
+        "jint", "JavaVM * vm, void * reserved"
+    ],
+    "JNI_OnUnload": [
+        "void", "JavaVM * vm, void * reserved"
+    ],
+}
 
 def get_type(atype):
     """
@@ -98,7 +115,7 @@ class JNIMethod(object):
 
     @property
     def native_args(self):
-        # NOTE: ghidra pointer and type require space inside 
+        # NOTE: ghidra pointer and type require space inside
         args = [('JNIEnv *', 'env')]
         if self.static:
             args.append(('jclass', 'clazz'))
@@ -109,6 +126,13 @@ class JNIMethod(object):
     @property
     def native_ret(self):
         return get_type(self.ret)
+
+    @property
+    def as_dict(self):
+        return { self.native_name: [
+            self.native_ret,
+            ", ".join("%s %s" % (t, n) for t, n in self.native_args)
+        ]}
 
     def __repr__(self):
         return "{}{}({}){}".format(
@@ -141,49 +165,101 @@ def parse_class_def(cdef: ClassDefItem) -> List[JNIMethod]:
     return jms
 
 
-def parse_dx(dx: Analysis) -> Iterator[JNIMethod]:
-    for cx in dx.get_internal_classes():
-        for jm in parse_class_def(cx.get_class()):
-            yield jm
-
-
-def parse_apk(apkfile, outfile=None):
+def parse_dx(dx: Analysis, fn_match=None, outfile=None):
     console = Console()
-    t0 = datetime.now()
-    a = APK(apkfile, skip_analysis=True)
-    out = {
-        "JNI_OnLoad": [
-            "jint", "JavaVM * vm, void * reserved"
-        ],
-        "JNI_OnUnload": [
-            "void", "JavaVM * vm, void * reserved"
-        ],
-    }
-    dexes = list(a.get_all_dex())
-    total = len(dexes)
-    num_class = 0
-    for i, dex in track(enumerate(dexes), 'Analyzing...', console=console, total=total):
-        idx = i + 1
-        try:
-            console.log("Parsing DEX {}/{} ({} bytes) ...".format(idx, total, len(dex)))
-            df = DalvikVMFormat(dex)
-        except Exception as e:
-            console.log("[bold red]Failed parsing DEX {}[/bold red]: {}".format(idx, e))
+    out = {}
+    out.update(JNI_COMMON)
+    count = 0
+    for cx in dx.get_internal_classes():
+        methods = parse_class_def(cx.get_class())
+        count += 1
+        if not methods:
             continue
-        for cdef in df.get_classes():
-            num_class += 1
-            methods = parse_class_def(cdef)
-            for m in methods:
-                out[m.native_name] = [
-                    m.native_ret,
-                    ", ".join("%s %s" % (t, n) for t, n in m.native_args)
-                ]
+        cname = methods[0].jclass
+        if fn_match and not fn_match(cname):
+            continue
+        for m in methods:
+            out.update(m.as_dict)
+    console.log(f"Parse {count} classes.")
+    console.log(f"Found {len(out)} JNI methods.")
+    if not outfile:
+        console.print_json(data=out)
+    else:
+        with open(outfile, 'w') as f:
+            json.dump(out, f, indent=2, ensure_ascii=False)
+
+
+def extract_dex_files(apkfile) -> Iterator[DexFile]:
+    from zipfile import ZipFile
+    z = ZipFile(apkfile)
+    for info in z.infolist():
+        if info.filename.endswith('.dex'):
+            yield DexFile(info.filename, z.read(info))
+
+
+def parse_dex_proc(dex: DexFile):
+    out = {}
+    count = 0
+    try:
+        df = DalvikVMFormat(dex.data)
+    except Exception as e:
+        return dex, count, e
+    for cdef in df.get_classes():
+        count += 1
+        methods = parse_class_def(cdef)
+        if not methods:
+            continue
+        className = methods[0].jclass
+        out[className] = {}
+        for m in methods:
+            out[className].update(m.as_dict)
+    return dex, count, out
+
+
+def parse_apk(apkfile, workers, fn_match=None, outfile=None):
+    console = Console()
+    console.log(f"Parsing {apkfile} with {workers} workers ...")
+    dexes = list(extract_dex_files(apkfile))
+    console.log(f"Found {len(dexes)} DEX file.")
+    total = sum(map(lambda d: len(d.data), dexes))
+    progress = Progress(
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(
+            complete_style='bar.complete',
+            finished_style='bar.finished',
+            pulse_style='bar.pulse',
+        ),
+        TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+        TimeRemainingColumn(),
+        TimeElapsedColumn(),
+        console=console,
+    )
+    out = {}
+    out.update(JNI_COMMON)
+    num_classes = 0
+    t0 = datetime.now()
+    with progress:
+        task = progress.add_task("Analyzing...", total=total)
+        with multiprocessing.Pool(workers) as pool:
+            result = pool.imap(parse_dex_proc, dexes)
+            for dex, count, res in result:
+                if count == 0:
+                    console.log("Parse {} ({} bytes) [bold red]failed: {}".format(
+                        dex.name, len(dex.data), res))
+                    continue
+                console.log("Parse {} ({} bytes), found {} classes.".format(
+                    dex.name, len(dex.data), count))
+                num_classes += count
+                progress.update(task, advance=len(dex.data))
+                for cname, data in res.items():
+                    if fn_match and not fn_match(cname):
+                        continue
+                    out.update(data)
     console.log("Aanlyzed {} classes, cost: {}".format(
-        num_class, datetime.now() - t0))
+        num_classes, datetime.now() - t0))
     console.log("Found {} JNI methods.".format(len(out)))
     if not outfile:
-        # console.print_json(data=out)
-        console.print(out)
+        console.print_json(data=out)
     else:
         with open(outfile, 'w') as f:
             json.dump(out, f, indent=2, ensure_ascii=False)
@@ -191,8 +267,9 @@ def parse_apk(apkfile, outfile=None):
 
 if __name__ == '__main__':
     import argparse
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('apk', help='/path/to/apk')
+    parser.add_argument('-j', dest='workers', type=int, default=multiprocessing.cpu_count(), help='parse apk with multiple workers(processes)')
     parser.add_argument('-o', dest='outfile', help='save JNI methods as formatted json file')
     args = parser.parse_args()
-    parse_apk(args.apk, args.outfile)
+    parse_apk(args.apk, args.workers, outfile=args.outfile)

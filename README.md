@@ -22,34 +22,35 @@ pip3 install -r requirements.txt
 Usage:
 ```sh
 $ ./extract_jni.py -h
-usage: extract_jni.py [-h] [-o OUTFILE] apk
+usage: extract_jni.py [-h] [-j WORKERS] [-o OUTFILE] apk
 
 positional arguments:
   apk         /path/to/apk
 
 optional arguments:
   -h, --help  show this help message and exit
-  -o OUTFILE  save JNI methods as formatted json file
+  -j WORKERS  parse apk with multiple workers(processes) (default: 8)
+  -o OUTFILE  save JNI methods as formatted json file (default: stdout)
 ```
 
-## Ghidra
+## Ghidra Plugin
 
-See [Ghidra](./ghidra)
+See [Ghidra](./ghidra).
 
 Before      |  After    
 :----------:|:------------:
 ![g1][g1]   |  ![g2][g2]
 
 
-## IDA
+## IDA Plugin
 
-See [IDA](./ida)
+See [IDA](./ida).
 
 Before      |  After    
 :----------:|:------------:
 ![i1][i1]   |  ![i2][i2]
 
-## Radare2
+## Radare2 Plugin
 
 > WIP, see [Radare2](./r2)
 
