@@ -65,7 +65,7 @@ def main():
         if fname.startswith('Java_') or fname in ['JNI_OnLoad', 'JNI_OnUnload']:
             sig = infos.get(fname)
             if sig is None:
-                failed.append(name)
+                failed.append(fname)
             else:
                 succ += 1
                 apply_signature(ea, sig)
