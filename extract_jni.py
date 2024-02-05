@@ -19,7 +19,15 @@ from rich.progress import (
     TimeElapsedColumn,
 )
 
+from elftools.elf.elffile import ELFFile
+import os
+from io import BytesIO
+
 DexFile = namedtuple('DexFile', ['name', 'data'])
+
+
+SoFile = namedtuple('SoFile', ['name', 'data'])
+
 
 JNI_COMMON = {
     "JNI_OnLoad": [
@@ -29,6 +37,7 @@ JNI_COMMON = {
         "void", "JavaVM * vm, void * reserved"
     ],
 }
+
 
 def get_type(atype):
     """
@@ -197,6 +206,36 @@ def extract_dex_files(apkfile) -> Iterator[DexFile]:
             yield DexFile(info.filename, z.read(info))
 
 
+def get_exported_functions(filedata):
+    elffile = ELFFile(BytesIO(filedata))
+    # 获取符号表
+    symtab = elffile.get_section_by_name('.dynsym')
+    if symtab is None:
+        print('dynsym is empty')
+        return []
+    # 查找符号表中的导出函数
+    functions = []
+    for symbol in symtab.iter_symbols():
+        if symbol.entry.st_info.type == 'STT_FUNC' and symbol.entry.st_shndx != 'SHN_UNDEF':
+            functions.append(symbol.name)
+    return functions
+
+
+def extract_so_files(apkfile) -> Iterator[SoFile]:
+    from zipfile import ZipFile
+    z = ZipFile(apkfile)
+    for info in z.infolist():
+        if info.filename.endswith('.so') and info.filename.startswith('lib/arm64-v8a'):
+            yield SoFile(info.filename, z.read(info))
+
+
+def parse_so_proc(sofile: SoFile):
+    funcs = get_exported_functions(sofile.data)
+    out = {}
+    out[sofile.name] = [x for x in funcs if x.startswith('Java_') ]
+    return sofile, len(funcs), out
+
+
 def parse_dex_proc(dex: DexFile):
     out = {}
     count = 0
@@ -220,7 +259,7 @@ def parse_apk(apkfile, workers, fn_match=None, outfile=None):
     console = Console()
     console.log(f"Parsing {apkfile} with {workers} workers ...")
     dexes = list(extract_dex_files(apkfile))
-    console.log(f"Found {len(dexes)} DEX file.")
+    console.log(f"Found {len(dexes)} DEX files.")
     total = sum(map(lambda d: len(d.data), dexes))
     progress = Progress(
         TextColumn("[progress.description]{task.description}"),
@@ -237,9 +276,10 @@ def parse_apk(apkfile, workers, fn_match=None, outfile=None):
     out = {}
     out.update(JNI_COMMON)
     num_classes = 0
+    num_functions = 0
     t0 = datetime.now()
     with progress:
-        task = progress.add_task("Analyzing...", total=total)
+        task = progress.add_task("Analyzing Dex...", total=total)
         with multiprocessing.Pool(workers) as pool:
             result = pool.imap(parse_dex_proc, dexes)
             for dex, count, res in result:
@@ -255,9 +295,27 @@ def parse_apk(apkfile, workers, fn_match=None, outfile=None):
                     if fn_match and not fn_match(cname):
                         continue
                     out.update(data)
-    console.log("Aanlyzed {} classes, cost: {}".format(
-        num_classes, datetime.now() - t0))
+    soes = list(extract_so_files(apkfile))
+    console.log(f"Found {len(soes)} so files.")                   
+    total = sum(map(lambda d: len(d.data), soes))
+    with progress:
+        task = progress.add_task("Analyzing so...", total=total)
+        with multiprocessing.Pool(workers) as pool:
+            result = pool.imap(parse_so_proc, soes)
+            for sofile, count, res in result:
+                if count == 0:
+                    console.log("Parse {} ({} bytes) [bold red]failed: {}".format(
+                        sofile.name, len(sofile.data), res))
+                    continue
+                console.log("Parse {} ({} bytes), found {} exported functions.".format(
+                    sofile.name, len(sofile.data), count))
+                num_functions += count
+                progress.update(task, advance=len(dex.data))
+                out.update(res)
+    console.log("Aanlyzed {} classes, {} soes, cost: {}".format(
+        num_classes, len(soes), datetime.now() - t0))
     console.log("Found {} JNI methods.".format(len(out)))
+
     if not outfile:
         console.print_json(data=out)
     else:
