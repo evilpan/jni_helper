@@ -56,7 +56,12 @@ Before      |  After
 
 # Demo
 
-Tested with demo APK: [app-debug.apk](./demo)
+Tested with [demo APK](demo_apk).
+
+```sh
+cd demo_apk
+./gradlew assembleDebug
+```
 
 # TODO
 
@@ -79,4 +84,4 @@ Tested with demo APK: [app-debug.apk](./demo)
 [i2]: https://img-blog.csdnimg.cn/20201005164352403.png
 [g1]: https://img-blog.csdnimg.cn/20201005152933443.png
 [g2]: https://img-blog.csdnimg.cn/20201005153107550.png
-[extract]: https://img-blog.csdnimg.cn/4b2d0ae3e5664ca0ab64d22e0bbddd1a.png
+[extract]: https://img-blog.csdnimg.cn/direct/b7dbfbe6b3744b56a6d66079db8ebbb8.png

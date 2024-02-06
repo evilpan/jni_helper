@@ -19,10 +19,15 @@ def load_methods():
     log("loading signature file: %s", sigfile)
 
     with open(sigfile, 'r') as f:
-        infos = json.load(f)
+        data = json.load(f)
 
-    log("loaded %d methods from JSON", len(infos))
-    return infos
+    directMethods = {}
+    for clz, methods in data["dexInfo"].items():
+        for method in methods:
+            args = ", ".join(method["args"])
+            directMethods[method["mangle"]] = (method["ret"], args)
+    log("loaded %d methods from JSON", len(directMethods))
+    return directMethods
 
 
 def is_jni_header_loaded():

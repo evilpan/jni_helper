@@ -3,13 +3,12 @@ import json
 import multiprocessing
 from datetime import datetime
 from collections import Counter, namedtuple
-from typing import Iterable, Iterator, List, Dict
+from typing import Iterator, List
 
 from androguard.core.analysis.analysis import Analysis
 from androguard.core.bytecodes.dvm import DalvikVMFormat, ClassDefItem, EncodedMethod
 from androguard.decompiler.dad.util import TYPE_DESCRIPTOR
 
-from rich.progress import track
 from rich.console import Console
 from rich.progress import (
     BarColumn,
@@ -19,13 +18,12 @@ from rich.progress import (
     TimeElapsedColumn,
 )
 
-from elftools.elf.elffile import ELFFile
-import os
 from io import BytesIO
+from elftools.elf.elffile import ELFFile
+from elftools.elf.sections import SymbolTableSection
+
 
 DexFile = namedtuple('DexFile', ['name', 'data'])
-
-
 SoFile = namedtuple('SoFile', ['name', 'data'])
 
 
@@ -37,6 +35,19 @@ JNI_COMMON = {
         "void", "JavaVM * vm, void * reserved"
     ],
 }
+
+__COMMON__ = [
+    {
+        "mangle": "JNI_OnLoad",
+        "ret": "jint",
+        "args": ["JavaVM * vm", "void * reserved"]
+    },
+    {
+        "mangle": "JNI_OnUnload",
+        "ret": "void",
+        "args": ["JavaVM * vm", "void * reserved"]
+    }
+]
 
 
 def get_type(atype):
@@ -87,11 +98,13 @@ def escape(name: str):
 
 
 class JNIMethod(object):
-    def __init__(self, jclass, name, args, ret, static=False, overload=False):
+    def __init__(self, jclass, name, descriptor, static=False, overload=False):
         self.jclass = jclass # fullname: e.g com.evilpan.Foo
         self.name = name # method name
-        self.args = args # list of smali type
-        self.ret = ret # smali type
+        args, ret = descriptor[1:].rsplit(')', 1)
+        self.args = str(args).split() # list of smali type, space splited
+        self.ret = str(ret) # smali type
+        self.descriptor = "({}){}".format("".join(self.args), self.ret)
         self.static = static
         self.overload = overload
 
@@ -103,10 +116,8 @@ class JNIMethod(object):
         # Can be calculated this in the outside loop, but it doesn't really matters...
         jclass = str(em.get_class_name()[1:-1].replace('/', '.'))
         name = str(em.name)
-        args, ret = em.get_descriptor()[1:].rsplit(')', 1)
-        args = str(args).split()
-        ret = str(ret)
-        return cls(jclass, name, args, ret, static='static' in flags)
+        descriptor = str(em.get_descriptor())
+        return cls(jclass, name, descriptor, static='static' in flags)
 
     @property
     def native_name(self):
@@ -133,6 +144,10 @@ class JNIMethod(object):
         return args + [(get_type(arg), 'a%d' % (i+1)) for i, arg in enumerate(self.args)]
 
     @property
+    def native_args_list(self) -> List[str]:
+        return [f"{t} {n}" for t, n in self.native_args]
+
+    @property
     def native_ret(self):
         return get_type(self.ret)
 
@@ -140,8 +155,18 @@ class JNIMethod(object):
     def as_dict(self):
         return { self.native_name: [
             self.native_ret,
-            ", ".join("%s %s" % (t, n) for t, n in self.native_args)
+            ", ".join(self.native_args_list)
         ]}
+
+    @property
+    def as_json(self):
+        return {
+            "mangle": self.native_name,
+            "ret": self.native_ret,
+            "args": self.native_args_list,
+            "name": self.name,
+            "sig": self.descriptor
+        }
 
     def __repr__(self):
         return "{}{}({}){}".format(
@@ -154,7 +179,7 @@ class JNIMethod(object):
     def __str__(self):
         return "JNIEXPORT {} JNICALL {} ({})".format(
             self.native_ret, self.native_name,
-            ", ".join(map(lambda a: a[0] + ' ' + a[1], self.native_args))
+            ", ".join(self.native_args_list)
         )
 
 
@@ -174,30 +199,6 @@ def parse_class_def(cdef: ClassDefItem) -> List[JNIMethod]:
     return jms
 
 
-def parse_dx(dx: Analysis, fn_match=None, outfile=None):
-    console = Console()
-    out = {}
-    out.update(JNI_COMMON)
-    count = 0
-    for cx in dx.get_internal_classes():
-        methods = parse_class_def(cx.get_class())
-        count += 1
-        if not methods:
-            continue
-        cname = methods[0].jclass
-        if fn_match and not fn_match(cname):
-            continue
-        for m in methods:
-            out.update(m.as_dict)
-    console.log(f"Parse {count} classes.")
-    console.log(f"Found {len(out)} JNI methods.")
-    if not outfile:
-        console.print_json(data=out)
-    else:
-        with open(outfile, 'w') as f:
-            json.dump(out, f, indent=2, ensure_ascii=False)
-
-
 def extract_dex_files(apkfile) -> Iterator[DexFile]:
     from zipfile import ZipFile
     z = ZipFile(apkfile)
@@ -207,21 +208,19 @@ def extract_dex_files(apkfile) -> Iterator[DexFile]:
 
 
 def get_exported_functions(filedata):
+    out = {}
     elffile = ELFFile(BytesIO(filedata))
-    # 获取符号表
-    symtab = elffile.get_section_by_name('.dynsym')
-    if symtab is None:
-        print('dynsym is empty')
-        return []
-    # 查找符号表中的导出函数
-    functions = []
-    for symbol in symtab.iter_symbols():
-        if symbol.entry.st_info.type == 'STT_FUNC' and symbol.entry.st_shndx != 'SHN_UNDEF':
-            functions.append(symbol.name)
-    return functions
+    symbol_tables = [(idx, s) for idx, s in enumerate(elffile.iter_sections())
+                    if isinstance(s, SymbolTableSection)]
+    # base = elffile.header.e_entry
+    for section_index, section in symbol_tables:
+        for nsym, symbol in enumerate(section.iter_symbols()):
+            if symbol.entry.st_info.type == 'STT_FUNC' and symbol.entry.st_shndx != 'SHN_UNDEF':
+                out[symbol.name] = symbol['st_value']
+    return out
 
 
-def extract_so_files(apkfile) -> Iterator[SoFile]:
+def extract_so_files(apkfile: str) -> Iterator[SoFile]:
     from zipfile import ZipFile
     z = ZipFile(apkfile)
     for info in z.infolist():
@@ -229,15 +228,12 @@ def extract_so_files(apkfile) -> Iterator[SoFile]:
             yield SoFile(info.filename, z.read(info))
 
 
-def parse_so_proc(sofile: SoFile):
+def parse_so_sync(sofile: SoFile):
     funcs = get_exported_functions(sofile.data)
-    out = {}
-    out[sofile.name] = [x for x in funcs if x.startswith('Java_') ]
-    return sofile, len(funcs), out
-
+    return {k: v for k, v in funcs.items() if k.startswith('Java_') or k in JNI_COMMON.keys()}
 
 def parse_dex_proc(dex: DexFile):
-    out = {}
+    dexInfo = {}
     count = 0
     try:
         df = DalvikVMFormat(dex.data)
@@ -249,10 +245,11 @@ def parse_dex_proc(dex: DexFile):
         if not methods:
             continue
         className = methods[0].jclass
-        out[className] = {}
+        if className not in dexInfo:
+            dexInfo[className] = []
         for m in methods:
-            out[className].update(m.as_dict)
-    return dex, count, out
+            dexInfo[className].append(m.as_json)
+    return dex, count, dexInfo
 
 
 def parse_apk(apkfile, workers, fn_match=None, outfile=None):
@@ -273,10 +270,10 @@ def parse_apk(apkfile, workers, fn_match=None, outfile=None):
         TimeElapsedColumn(),
         console=console,
     )
-    out = {}
-    out.update(JNI_COMMON)
+    dexInfo = {
+        "__COMMON__": __COMMON__
+    }
     num_classes = 0
-    num_functions = 0
     t0 = datetime.now()
     with progress:
         task = progress.add_task("Analyzing Dex...", total=total)
@@ -291,36 +288,32 @@ def parse_apk(apkfile, workers, fn_match=None, outfile=None):
                     dex.name, len(dex.data), count))
                 num_classes += count
                 progress.update(task, advance=len(dex.data))
-                for cname, data in res.items():
-                    if fn_match and not fn_match(cname):
+                for className, methodData in res.items():
+                    if fn_match and not fn_match(className):
                         continue
-                    out.update(data)
-    soes = list(extract_so_files(apkfile))
-    console.log(f"Found {len(soes)} so files.")                   
-    total = sum(map(lambda d: len(d.data), soes))
-    with progress:
-        task = progress.add_task("Analyzing so...", total=total)
-        with multiprocessing.Pool(workers) as pool:
-            result = pool.imap(parse_so_proc, soes)
-            for sofile, count, res in result:
-                if count == 0:
-                    console.log("Parse {} ({} bytes) [bold red]failed: {}".format(
-                        sofile.name, len(sofile.data), res))
-                    continue
-                console.log("Parse {} ({} bytes), found {} exported functions.".format(
-                    sofile.name, len(sofile.data), count))
-                num_functions += count
-                progress.update(task, advance=len(dex.data))
-                out.update(res)
-    console.log("Aanlyzed {} classes, {} soes, cost: {}".format(
-        num_classes, len(soes), datetime.now() - t0))
-    console.log("Found {} JNI methods.".format(len(out)))
+                    dexInfo.update({className: methodData})
+    console.log("Aanlyzed {} classes, cost: {}".format(
+        num_classes, datetime.now() - t0))
+    # Parse the so information synchronously, since it's fast.
+    soInfo = {}
+    soFiles = list(extract_so_files(apkfile))
+    console.log(f"Found {len(soFiles)} so files.")
+    for soFile in soFiles:
+        possible_symbols = parse_so_sync(soFile)
+        if possible_symbols:
+            soInfo[soFile.name] = possible_symbols
+            console.log("Found {} JNI symbols in {}.".format(
+                len(possible_symbols), soFile.name))
 
+    output = {
+        "dexInfo": dexInfo,
+        "soInfo": soInfo
+    }
     if not outfile:
-        console.print_json(data=out)
+        console.print_json(data=output)
     else:
         with open(outfile, 'w') as f:
-            json.dump(out, f, indent=2, ensure_ascii=False)
+            json.dump(output, f, indent=2, ensure_ascii=False)
 
 
 if __name__ == '__main__':

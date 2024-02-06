@@ -29,8 +29,13 @@ def load_methods():
     with open(sigfile, 'r') as f:
         out = json.load(f)
 
-    log("loaded %d methods from JSON", len(out))
-    return out
+    directMethods = {}
+    for clz, methods in out["dexInfo"].items():
+        for method in methods:
+            args = ", ".join(method["args"])
+            directMethods[method["mangle"]] = (method["ret"], args)
+    log("loaded %d methods from JSON", len(directMethods))
+    return directMethods
 
 
 class TypeUtil(object):
@@ -73,6 +78,8 @@ class TypeUtil(object):
         ret, args = sig
         params = []
         for tn in args.split(", "):
+            if not tn:
+                continue
             t, n = tn.rsplit(" ", 1)
             params.append(self.getParam(t, n))
         func.updateFunction(None, self.getRet(ret),
