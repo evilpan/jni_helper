@@ -69,6 +69,7 @@ cd demo_apk
 - [x] support overloaded JNI functions
 - [x] remove Jadx dependence, all in Python
 - [ ] support [env->RegisterNatives][reg] JNI functions
+- [ ] Add BinaryNinja plugin
 
 # LINKS
 
