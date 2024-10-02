@@ -14,17 +14,17 @@ JNI_OUT = os.environ.get('JNI_OUT')
 
 
 def log(fmt, *args):
-    print "[+]", fmt % args
+    print("[+]", fmt.format(args))
 
 
 def load_methods():
     sigfile = JNI_OUT
-    log("loading signature file: %s", sigfile)
+    log(f"loading signature file: {sigfile}")
 
     with open(sigfile, 'r') as f:
         infos = json.load(f)
 
-    log("loaded %d methods from JSON", len(infos))
+    log(f"loaded {len(infos)} methods from JSON")
     return infos
 
 
@@ -32,18 +32,18 @@ def apply_signature(r2, func, info):
     addr = func['vaddr']
     name = func['name']
     if info is None:
-        log("WARN: no info for 0x%x %s", addr, name)
+        log(f"WARN: no info for 0x{addr} {name}")
         return
-    log("apply 0x%x @ %s", addr, name)
-    r2.cmd('s %d; af' % addr)
+    log(f"apply 0x{addr} @ {name}")
+    r2.cmd(f's {addr}; af')
 
-    # formatted, but radare2 not support custom structure is sigature yet
-    sig = 'void %s (void* env' % name
+    # formatted using f-string
+    sig = f'void {name} (void* env'
     sig += ', int32_t ' + ('clazz' if info.get('isStatic') else 'thiz')
     for idx, at in enumerate(info.get('argumentTypes', [])):
-        sig += ', int32_t arg%d' % (idx + 1)
+        sig += f', int32_t arg{idx + 1}'
     sig += ');'
-    r2.cmd('afs ' + sig)
+    r2.cmd(f'afs {sig}')
     r2.cmd('afva') # reanalysis
 
     # workaround to add custom type for signature
@@ -53,7 +53,7 @@ def apply_signature(r2, func, info):
     else:
         r2.cmd('afvt thiz jobject')
     for idx, at in enumerate(info.get('argumentTypes', [])):
-        r2.cmd('afvt arg%d %s' % ((idx+1), at))
+        r2.cmd(f'afvt arg{idx + 1} {at}')
     r2.cmd('aft')
 
 
@@ -61,8 +61,8 @@ def apply_load_unload(r2, func, unload=False):
     # already loaded
     addr = func['vaddr']
     name = func['name']
-    log("apply 0x%x @ %s", addr, name)
-    r2.cmd('s %d; af' % addr)
+    log(f"apply 0x{addr} @ {name}")
+    r2.cmd(f's {addr}; af')
 
 
 def main():
