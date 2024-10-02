@@ -89,7 +89,7 @@ def escape(name: str):
     return name
 
 
-class JNIMethod:
+class JNIMethod(object):
     def __init__(self, jclass, name, descriptor, static=False, overload=False):
         self.jclass = jclass  # fullname: e.g com.evilpan.Foo
         self.name = name  # method name
