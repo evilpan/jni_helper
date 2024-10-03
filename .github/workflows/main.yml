@@ -32,7 +32,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Download APK from build
-        uses: actions/download-artifact@v1
+        uses: actions/download-artifact@v4
         with:
           name: demoapk
       - name: preinstall
@@ -47,7 +47,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download APK from build
-        uses: actions/download-artifact@v1
+        uses: actions/download-artifact@v4
         with:
           name: demoapk
       - name: Create Release
