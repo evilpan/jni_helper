@@ -38,7 +38,7 @@ jobs:
       - name: preinstall
         run: pip3 install -r requirements.txt
       - name: test
-        run: ./extract_jni.py demo.apk
+        run: ./extract_jni.py jni_helper/demo.apk
 
   release:
     name: release APK

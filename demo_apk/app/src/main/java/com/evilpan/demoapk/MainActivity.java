@@ -1,26 +1,20 @@
 package com.evilpan.demoapk;
 
-import androidx.appcompat.app.AppCompatActivity;
 
+import android.app.Activity;
 import android.os.Bundle;
 import android.widget.TextView;
 
 import com.evilpan.demoapk.databinding.ActivityMainBinding;
 
-public class MainActivity extends AppCompatActivity {
-
-    private ActivityMainBinding binding;
+public class MainActivity extends Activity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        binding = ActivityMainBinding.inflate(getLayoutInflater());
-        setContentView(binding.getRoot());
-
         // Example of a call to a native method
-        TextView tv = binding.sampleText;
-
+        TextView tv = findViewById(R.id.sample_text);
         FacadeC fc = new FacadeC();
         FacadeCpp fcc = new FacadeCpp();
         String sb = "=== C ===\n" +
@@ -33,5 +27,6 @@ public class MainActivity extends AppCompatActivity {
                 "dynamic = " + fcc.testDynamic() +
                 "\n";
         tv.setText(sb);
+        setContentView(tv);
     }
 }
