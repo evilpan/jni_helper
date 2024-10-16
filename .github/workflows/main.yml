@@ -23,7 +23,7 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: demo.apk
+          name: demoapk
           path: demo_apk/app/build/outputs/apk/debug/app-debug.apk
   test:
     name: Test JNI extraction
@@ -34,12 +34,11 @@ jobs:
       - name: Download APK from build
         uses: actions/download-artifact@v4
         with:
-          pattern: demo.apk
+          name: demoapk
       - name: preinstall
         run: pip3 install -r requirements.txt
       - name: test
-        run: ./extract_jni.py jni_helper/demo.apk
-
+        run: ./extract_jni.py app-debug.apk
   release:
     name: release APK
     needs: build_apk
@@ -49,7 +48,7 @@ jobs:
       - name: Download APK from build
         uses: actions/download-artifact@v4
         with:
-          pattern: demo.apk
+          name: demoapk
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
