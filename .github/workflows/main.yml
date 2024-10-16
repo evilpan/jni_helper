@@ -21,9 +21,9 @@ jobs:
       - name: Build APK
         run: cd demo_apk && bash ./gradlew assembleDebug --stacktrace
       - name: Upload APK
-        uses: actions/upload-artifact@v1
+        uses: actions/upload-artifact@v3
         with:
-          name: demoapk
+          name: demo.apk
           path: demo_apk/app/build/outputs/apk/debug/app-debug.apk
   test:
     name: Test JNI extraction
@@ -32,13 +32,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Download APK from build
-        uses: actions/download-artifact@v1
+        uses: actions/download-artifact@v4
         with:
-          name: demoapk
+          pattern: demo.apk
       - name: preinstall
         run: pip3 install -r requirements.txt
       - name: test
-        run: ./extract_jni.py demoapk/app-debug.apk
+        run: ./extract_jni.py demo.apk
 
   release:
     name: release APK
@@ -47,9 +47,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download APK from build
-        uses: actions/download-artifact@v1
+        uses: actions/download-artifact@v4
         with:
-          name: demoapk
+          pattern: demo.apk
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
@@ -68,4 +68,3 @@ jobs:
           asset_path: demoapk/app-debug.apk
           asset_name: DemoJNI-debug.apk
           asset_content_type: application/zip
-
