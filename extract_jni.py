@@ -302,7 +302,7 @@ def parse_apk(apkfile, workers, fn_match=None, outfile=None):
     if not outfile:
         console.print_json(data=output)
     else:
-        with open(outfile, "w") as f:
+        with open(outfile, "w", encoding="utf-8") as f:
             json.dump(output, f, indent=2, ensure_ascii=False)
 
 
