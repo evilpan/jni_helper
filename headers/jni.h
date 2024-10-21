@@ -29,6 +29,22 @@
 #define JNIIMPORT __declspec(dllimport)
 #define JNICALL __stdcall
 
+// tricks for binary ninja
+// -fdeclspec -x c -std=c99
+#ifndef __int64
+typedef int64_t __int64;
+#endif
+#ifndef va_list
+typedef char* va_list;
+#endif
+#ifndef va_start
+#define va_start(ap, last) (ap = (va_list)&last + sizeof(last))
+#endif
+#ifndef va_end
+#define va_end(ap) (ap = (va_list)0)
+#endif
+
+
 typedef long jint;
 typedef __int64 jlong;
 typedef signed char jbyte;

@@ -132,7 +132,7 @@ class JNIMethod:
         if self.static:
             native_args_list.append(("jclass", "clazz"))
         else:
-            native_args_list.append(("jobject", "this"))
+            native_args_list.append(("jobject", "thiz"))
         return native_args_list + [
             (get_type(arg), f"a{i + 1}") for i, arg in enumerate(self.args)
         ]

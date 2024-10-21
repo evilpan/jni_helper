@@ -50,6 +50,14 @@ Before      |  After
 :----------:|:------------:
 ![i1][i1]   |  ![i2][i2]
 
+## Binary Ninja
+
+see [Binary Ninja](./binaryninja).
+
+Before      |  After    
+:----------:|:------------:
+![b2][b2]   |  ![b4][b4]
+
 ## Radare2 Plugin
 
 > WIP, see [Radare2](./r2)
@@ -68,8 +76,8 @@ cd demo_apk
 - [x] support both C/C++ JNI functions
 - [x] support overloaded JNI functions
 - [x] remove Jadx dependence, all in Python
+- [x] Add BinaryNinja plugin
 - [ ] support [env->RegisterNatives][reg] JNI functions
-- [ ] Add BinaryNinja plugin
 
 # LINKS
 
@@ -85,4 +93,10 @@ cd demo_apk
 [i2]: https://img-blog.csdnimg.cn/20201005164352403.png
 [g1]: https://img-blog.csdnimg.cn/20201005152933443.png
 [g2]: https://img-blog.csdnimg.cn/20201005153107550.png
+
+[b1]: https://i-blog.csdnimg.cn/direct/1a68a50684ef4151a7c6b7442599f295.png
+[b2]: https://i-blog.csdnimg.cn/direct/56fb96fdf46a42b8ad5a79367df0b78f.png
+[b3]: https://i-blog.csdnimg.cn/direct/6de69105b83c4a9197cbad513ed4fe94.png
+[b4]: https://i-blog.csdnimg.cn/direct/58a77ec9f9a54e86871b5325ab5f1333.png
+
 [extract]: https://img-blog.csdnimg.cn/direct/b7dbfbe6b3744b56a6d66079db8ebbb8.png
