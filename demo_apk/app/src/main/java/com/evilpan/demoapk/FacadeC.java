@@ -23,6 +23,4 @@ public class FacadeC {
     public static native int testStatic(int i);
     public native int testClass(Context context);
     public native void testArray(int[] input);
-    public native int testDynamic();
-    public native void testDynamic1(int i);
 }

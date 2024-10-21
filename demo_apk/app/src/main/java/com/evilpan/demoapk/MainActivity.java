@@ -12,7 +12,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
+        setContentView(R.layout.activity_main);
         // Example of a call to a native method
         TextView tv = findViewById(R.id.sample_text);
         FacadeC fc = new FacadeC();
@@ -20,13 +20,12 @@ public class MainActivity extends Activity {
         String sb = "=== C ===\n" +
                 fc.stringFromJNI() +
                 "\n" +
-                "dynamic = " + fc.testDynamic() +
+                "dynamic = " + Facade.cDynamic3("hello") +
                 "\n" +
                 "=== CPP ===\n" +
                 fcc.stringFromJNI() + "\n" +
-                "dynamic = " + fcc.testDynamic() +
+                "dynamic = " + Facade.cppDynamic3("hello") +
                 "\n";
         tv.setText(sb);
-        setContentView(tv);
     }
 }
