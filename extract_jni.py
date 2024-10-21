@@ -225,6 +225,7 @@ def parse_so_sync(sofile: SoFile):
 
 
 def parse_dex_proc(dex: DexFile):
+    supress_andro_log()
     dexInfo = {}
     count = 0
     try:
@@ -305,6 +306,12 @@ def parse_apk(apkfile, workers, fn_match=None, outfile=None):
         with open(outfile, "w", encoding="utf-8") as f:
             json.dump(output, f, indent=2, ensure_ascii=False)
 
+
+def supress_andro_log():
+    import sys
+    from loguru import logger
+    logger.remove()
+    logger.add(sys.stderr, level="WARNING")
 
 if __name__ == "__main__":
     import argparse

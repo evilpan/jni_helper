@@ -52,7 +52,7 @@ Before      |  After
 
 ## Binary Ninja
 
-see [Binary Ninja](./binaryninja).
+see [Binary Ninja](./binary_ninja).
 
 Before      |  After    
 :----------:|:------------:
