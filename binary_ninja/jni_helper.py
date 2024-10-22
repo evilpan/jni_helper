@@ -14,14 +14,48 @@ class JNIHelper:
 
     def __init__(self):
         self.jni_header = ""
+        self.pr = None
 
     def start(self):
         if not self.init_header():
             return
         self.apply_signatures()
+        self.fix_cpp_symbols()
+
+    def fix_cpp_symbols(self):
+        """
+        fix incorrect signatures for `_JNIEnv::` in PLT,
+        for example `_JNIEnv::CallObjectMethod`
+        """
+        if not self.pr:
+            return
+        funcs = []
+        for fn in bv.functions:
+            name = fn.symbol.short_name
+            if name.startswith("_JNIEnv::"):
+                funcs.append(fn)
+        if not funcs:
+            log("not cpp library, skip")
+            return
+        # load correct signatures
+        sigmap = {}
+        for iface in self.pr.types:
+            if iface.name == 'JNINativeInterface_':
+                break
+        for member in iface.type.members[4:]:
+            sigmap[member.name] = member.type.children[0]
+        log("loaded {} JNI interface".format(len(sigmap)))
+        for fn in funcs:
+            name = fn.symbol.short_name[9:]
+            vtype = sigmap.get(name)
+            if vtype is None:
+                log(f"WARN: no signature for {name}")
+                continue
+            fn.type = vtype
+            log(f"cpp fix 0x{fn.start:x} {fn.symbol.short_name}")
+
 
     def init_header(self):
-        options = ["-fdeclspec"]
         jni_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "headers", "jni.h")
         if not os.path.exists(jni_file):
             jni_file = self.choose_file("jni.h not found, choose one")
@@ -80,6 +114,7 @@ class JNIHelper:
         pr = self.parse_source(jni_ext, "jni_ext.h")
         if pr is None:
             return
+        self.pr = pr
         for pt in pr.types:
             bv.define_user_type(pt.name, pt.type)
         for pf in pr.functions:

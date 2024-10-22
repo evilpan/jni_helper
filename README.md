@@ -54,9 +54,10 @@ Before      |  After
 
 see [Binary Ninja](./binary_ninja).
 
-Before      |  After    
-:----------:|:------------:
-![b2][b2]   |  ![b4][b4]
+Type   |  Image
+:-----:|:------------:
+Before |  ![b2][b2]
+After  |  ![b4][b4]
 
 ## Radare2 Plugin
 
