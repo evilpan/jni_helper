@@ -1,10 +1,14 @@
 import json
 import os
-import binaryninja
+from typing import List, Dict
+
+from binaryninja import TypeParser, BinaryView
+from binaryninja.typeparser import TypeParserResult
+from binaryninja.types import StructureMember
+from binaryninja.function import Function
 from binaryninja.interaction import (
     OpenFileNameField,
     get_form_input,
-    show_message_box,
 )
 
 def log(msg, *args, **kwargs):
@@ -12,11 +16,13 @@ def log(msg, *args, **kwargs):
 
 class JNIHelper:
 
-    def __init__(self):
+    def __init__(self, bv: BinaryView):
+        self.bv = bv
         self.jni_header = ""
-        self.pr = None
+        self.pr: TypeParserResult = None
 
     def start(self):
+        log(f"plugin start, bv={self.bv}")
         if not self.init_header():
             return
         self.apply_signatures()
@@ -29,8 +35,8 @@ class JNIHelper:
         """
         if not self.pr:
             return
-        funcs = []
-        for fn in bv.functions:
+        funcs: List[Function] = []
+        for fn in self.bv.functions:
             name = fn.symbol.short_name
             if name.startswith("_JNIEnv::"):
                 funcs.append(fn)
@@ -43,7 +49,8 @@ class JNIHelper:
             if iface.name == 'JNINativeInterface_':
                 break
         for member in iface.type.members[4:]:
-            sigmap[member.name] = member.type.children[0]
+            if isinstance(member, StructureMember):
+                sigmap[member.name] = member.type.children[0]
         log("loaded {} JNI interface".format(len(sigmap)))
         for fn in funcs:
             name = fn.symbol.short_name[9:]
@@ -72,7 +79,7 @@ class JNIHelper:
     def parse_source(self, source, name="<source>"):
         options = ["-fdeclspec"]
         result, errors = TypeParser.default.parse_types_from_source(
-                source, name, bv.platform,
+                source, name, self.bv.platform,
                 options=options
         )
         if result is None:
@@ -95,11 +102,11 @@ class JNIHelper:
         with open(file, 'r') as f:
             meta = json.load(f)
         jni_ext = self.jni_header + "\n"
-        func_map = {}
+        func_map: Dict[str, Function] = {}
         for cls, methods in meta["dexInfo"].items():
             for method in methods:
                 mangle = method["mangle"]
-                found = bv.get_functions_by_name(mangle)
+                found = self.bv.get_functions_by_name(mangle)
                 if not found:
                     continue
                 func = found[0]
@@ -116,7 +123,7 @@ class JNIHelper:
             return
         self.pr = pr
         for pt in pr.types:
-            bv.define_user_type(pt.name, pt.type)
+            self.bv.define_user_type(pt.name, pt.type)
         for pf in pr.functions:
             if pf.name not in func_map:
                 continue
@@ -126,6 +133,5 @@ class JNIHelper:
             func.reanalyze()
 
 
-log(f"plugin start, bv={bv}")
-jh = JNIHelper()
+jh = JNIHelper(bv)
 jh.start()
