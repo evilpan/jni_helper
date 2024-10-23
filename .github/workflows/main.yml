@@ -1,70 +1,28 @@
 name: CI
 
-on:
-  push:
-    branches: [ master ]
-  pull_request:
-    branches: [ master ]
+on: push
 
 jobs:
-  build_apk:
-    name: Generate APK
+  build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Setup JDK
+      - name: Build APK
         uses: actions/setup-java@v4
         with:
           distribution: 'oracle'
           java-version: '17'
-      - name: Build APK
         run: cd demo_apk && bash ./gradlew assembleDebug --stacktrace
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: demoapk
-          path: demo_apk/app/build/outputs/apk/debug/app-debug.apk
-  test:
-    name: Test JNI extraction
-    needs: build_apk
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Download APK from build
-        uses: actions/download-artifact@v4
-        with:
-          name: demoapk
-      - name: preinstall
+      - name: Install Dependencies
         run: pip3 install -r requirements.txt
-      - name: test
-        run: ./extract_jni.py app-debug.apk
-
-  release:
-    name: release APK
-    needs: build_apk
-    if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download APK from build
-        uses: actions/download-artifact@v4
+      - name: Test
+        run: ./extract_jni.py demo_apk/app/build/outputs/apk/debug/app-debug.apk
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
         with:
-          name: demoapk
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
-      - name: Upload Release APK
-        id: upload_release_asset
-        uses: actions/upload-release-asset@v1.0.1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: app-debug.apk
-          asset_name: app-debug.apk
-          asset_content_type: application/zip
+          files: demo_apk/app/build/outputs/apk/debug/app-debug.apk
+        generate_release_notes: true

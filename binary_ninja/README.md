@@ -6,17 +6,21 @@ File -> Run Script
 # Logging
 
 ```
-[+] plugin start, bv=<BinaryView: '/root/jni_helper/assets/lib/arm64-v8a/libdemoc.so', len 0x2a88>
-[+] init_header done.
-[+] fix 0x3708 JNI_OnLoad -> jint(JavaVM* vm, void* reserved)
-[+] fix 0x4980 JNI_OnUnload -> void(JavaVM* vm, void* reserved)
-[+] fix 0x5388 Java_com_evilpan_demoapk_FacadeC_testStatic -> jint(JNIEnv* env, jclass clazz, jint a1)
-[+] fix 0x5044 Java_com_evilpan_demoapk_FacadeC_stringFromJNI -> jstring(JNIEnv* env, jobject thiz)
-[+] fix 0x5916 Java_com_evilpan_demoapk_FacadeC_testArray -> void(JNIEnv* env, jobject thiz, jintArray a1)
-[+] fix 0x5468 Java_com_evilpan_demoapk_FacadeC_testClass -> jint(JNIEnv* env, jobject thiz, jobject a1)
-[+] fix 0x5144 Java_com_evilpan_demoapk_FacadeC_testOverload__ -> jint(JNIEnv* env, jobject thiz)
-[+] fix 0x5220 Java_com_evilpan_demoapk_FacadeC_testOverload__I -> jint(JNIEnv* env, jobject thiz, jint a1)
-[+] fix 0x5300 Java_com_evilpan_demoapk_FacadeC_testOverload__JFD -> jint(JNIEnv* env, jobject thiz, jlong a1, jfloat a2, jdouble a3)
+[+] plugin start, bv=<BinaryView: '/root/jni_helper/assets/lib/arm64-v8a/libdemocpp.so', len 0x4aa08>
+[+] init_header success.
+[+] loaded 229 JNI interface
+[+] fix 0x127016 Java_com_evilpan_demoapk_FacadeCpp_testStatic -> jint(JNIEnv* env, jclass clazz, jint a1)
+[+] fix 0x126388 Java_com_evilpan_demoapk_FacadeCpp_stringFromJNI -> jstring(JNIEnv* env, jobject thiz)
+[+] fix 0x128136 Java_com_evilpan_demoapk_FacadeCpp_testArray -> void(JNIEnv* env, jobject thiz, jintArray a1)
+[+] fix 0x127096 Java_com_evilpan_demoapk_FacadeCpp_testClass -> jint(JNIEnv* env, jobject thiz, jobject a1)
+[+] fix 0x126772 Java_com_evilpan_demoapk_FacadeCpp_testOverload__ -> jint(JNIEnv* env, jobject thiz)
+[+] fix 0x126848 Java_com_evilpan_demoapk_FacadeCpp_testOverload__I -> jint(JNIEnv* env, jobject thiz, jint a1)
+[+] fix 0x126928 Java_com_evilpan_demoapk_FacadeCpp_testOverload__JFD -> jint(JNIEnv* env, jobject thiz, jlong a1, jfloat a2, jdouble a3)
+[+] cpp fix 0x1ecfc _JNIEnv::FindClass
+[+] cpp fix 0x1ed30 _JNIEnv::RegisterNatives
+[+] cpp fix 0x1eedc _JNIEnv::NewStringUTF
+[+] cpp fix 0x1f1b0 _JNIEnv::GetObjectClass
+...
 ```
 
 High Level IL:

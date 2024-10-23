@@ -4,7 +4,7 @@ from typing import List, Dict
 
 from binaryninja import TypeParser, BinaryView
 from binaryninja.typeparser import TypeParserResult
-from binaryninja.types import StructureMember
+from binaryninja.types import StructureMember, FunctionType
 from binaryninja.function import Function
 from binaryninja.interaction import (
     OpenFileNameField,
@@ -20,6 +20,7 @@ class JNIHelper:
         self.bv = bv
         self.jni_header = ""
         self.pr: TypeParserResult = None
+        self.sigmap: Dict[str, FunctionType] = {}
 
     def start(self):
         log(f"plugin start, bv={self.bv}")
@@ -43,24 +44,13 @@ class JNIHelper:
         if not funcs:
             log("not cpp library, skip")
             return
-        # load correct signatures
-        sigmap = {}
-        for iface in self.pr.types:
-            if iface.name == 'JNINativeInterface_':
-                break
-        for member in iface.type.members[4:]:
-            if isinstance(member, StructureMember):
-                sigmap[member.name] = member.type.children[0]
-        log("loaded {} JNI interface".format(len(sigmap)))
         for fn in funcs:
-            name = fn.symbol.short_name[9:]
-            vtype = sigmap.get(name)
+            vtype = self.sigmap.get(fn.symbol.short_name)
             if vtype is None:
                 log(f"WARN: no signature for {name}")
                 continue
             fn.type = vtype
             log(f"cpp fix 0x{fn.start:x} {fn.symbol.short_name}")
-
 
     def init_header(self):
         jni_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "headers", "jni.h")
@@ -73,13 +63,23 @@ class JNIHelper:
         pr = self.parse_source(self.jni_header, "jni.h")
         if not pr:
             return False
-        log("init_header done.")
+        self.pr = pr
+        log("init_header success.")
+        for pt in self.pr.types:
+            self.bv.define_user_type(pt.name, pt.type)
+            if pt.name == 'JNINativeInterface_':
+                member: StructureMember = None
+                for member in pt.type.members[4:]:
+                    name = f"_JNIEnv::{member.name}"
+                    self.sigmap[name] = member.type.children[0]
+                log("loaded {} JNI interface".format(len(self.sigmap)))
         return True
 
     def parse_source(self, source, name="<source>"):
         options = ["-fdeclspec"]
         result, errors = TypeParser.default.parse_types_from_source(
                 source, name, self.bv.platform,
+                existing_types=self.bv,
                 options=options
         )
         if result is None:
@@ -101,7 +101,7 @@ class JNIHelper:
             return
         with open(file, 'r') as f:
             meta = json.load(f)
-        jni_ext = self.jni_header + "\n"
+        decls = ""
         func_map: Dict[str, Function] = {}
         for cls, methods in meta["dexInfo"].items():
             for method in methods:
@@ -117,13 +117,10 @@ class JNIHelper:
                 line = f"{ret} {mangle}({args})"
                 if cls == "__COMMON__":
                     continue
-                jni_ext += line + ";\n"
-        pr = self.parse_source(jni_ext, "jni_ext.h")
+                decls += line + ";\n"
+        pr = self.parse_source(decls, "jni_ext.h")
         if pr is None:
             return
-        self.pr = pr
-        for pt in pr.types:
-            self.bv.define_user_type(pt.name, pt.type)
         for pf in pr.functions:
             if pf.name not in func_map:
                 continue

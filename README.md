@@ -50,7 +50,7 @@ Before      |  After
 :----------:|:------------:
 ![i1][i1]   |  ![i2][i2]
 
-## Binary Ninja
+## Binary Ninja Plugin
 
 see [Binary Ninja](./binary_ninja).
 
