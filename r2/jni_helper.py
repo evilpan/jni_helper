@@ -23,10 +23,14 @@ def load_methods():
 
     with open(sigfile, 'r') as f:
         infos = json.load(f)
+    out = {}
+    for domain, methods in infos["dexInfo"].items():
+        for m in methods:
+            name = m['mangle']
+            out[name] = m
 
-    log(f"loaded {len(infos)} methods from JSON")
-    return infos
-
+    log(f"loaded {len(out)} methods from JSON")
+    return out
 
 def apply_signature(r2, func, info):
     addr = func['vaddr']
@@ -34,26 +38,35 @@ def apply_signature(r2, func, info):
     if info is None:
         log(f"WARN: no info for 0x{addr} {name}")
         return
-    log(f"apply 0x{addr} @ {name}")
-    r2.cmd(f's {addr}; af')
+    log(f"apply 0x{addr:x} @ {name}")
 
-    # formatted using f-string
-    sig = f'void {name} (void* env'
-    sig += ', int32_t ' + ('clazz' if info.get('isStatic') else 'thiz')
-    for idx, at in enumerate(info.get('argumentTypes', [])):
-        sig += f', int32_t arg{idx + 1}'
-    sig += ');'
-    r2.cmd(f'afs {sig}')
+    ret = info["ret"]
+    args = info["args"]
+    arg_names = []
+    arg_types = []
+    # afs not support custom type, use int32_t instead
+    arg_tmp = []
+    for arg in args:
+        atype, aname = arg.rsplit(" ", 1)
+        arg_names.append(aname)
+        arg_types.append(atype)
+        arg_tmp.append(
+            "int32_t " + arg.split(" ", 1)[1]
+        )
+    decl = '{} {}({})'.format(ret, name, ",".join(arg_tmp))
+    log(f"decl => {decl}")
+    r2.cmd(f's {addr}; af')
+    r2.cmd(f'afs {decl}')
     r2.cmd('afva') # reanalysis
 
     # workaround to add custom type for signature
-    r2.cmd('afvt env JNIEnv*')
-    if info.get('isStatic'):
-        r2.cmd('afvt clazz jclass')
-    else:
-        r2.cmd('afvt thiz jobject')
-    for idx, at in enumerate(info.get('argumentTypes', [])):
-        r2.cmd(f'afvt arg{idx + 1} {at}')
+    r2.cmd('aft')
+    for i in range(len(args)):
+        aname = arg_names[i]
+        atype = arg_types[i]
+        cmd = f'afvt {aname} "{atype}"'
+        log(cmd)
+        r2.cmd(cmd)
     r2.cmd('aft')
 
 
@@ -72,9 +85,9 @@ def main():
     infos = load_methods()
     r2 = r2pipe.open()
     # r2.cmd('aac')
-    r2.cmd('to ' + JNI_HEADER)
-    r2.cmd('e emu.str=true')
-    r2.cmd('aei;aeim')
+    r2.cmd(f'to {JNI_HEADER};')
+    r2.cmd('e emu.str=true;')
+    r2.cmd('aei;aeim;')
     for e in r2.cmdj('iEj'):
         sym = e['name']
         if sym.startswith('Java_'):

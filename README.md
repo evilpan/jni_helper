@@ -7,12 +7,10 @@ Find JNI function signatures in APK and apply to reverse tools.
 
 # Basic Usage
 
-1. Use [extract_jni.py](./extract_jni.py) to generate signature.json
-2. Load signature.json into Ghidra/IDA/Radare2
+1. Use [extract_jni.py](./extract_jni.py) to generate `signature.json`
+2. Load `signature.json` into Ghidra/IDA/BinaryNinja
 
 ## extract_jni.py
-
-![extract][extract]
 
 Install dependences:
 ```
@@ -32,6 +30,13 @@ optional arguments:
   -j WORKERS  parse apk with multiple workers(processes) (default: 8)
   -o OUTFILE  save JNI methods as formatted json file (default: stdout)
 ```
+
+Example:
+```sh
+./extract_jni.py app-debug.apk -o signature.json
+```
+
+![extract][extract]
 
 ## Ghidra Plugin
 
