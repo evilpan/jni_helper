@@ -10,11 +10,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Build APK
+      - name: Setup JDK
         uses: actions/setup-java@v4
         with:
           distribution: 'oracle'
           java-version: '17'
+      - name: Build APK
         run: cd demo_apk && bash ./gradlew assembleDebug --stacktrace
       - name: Install Dependencies
         run: pip3 install -r requirements.txt
