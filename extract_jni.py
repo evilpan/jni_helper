@@ -220,7 +220,12 @@ def extract_so_files(apkfile: str) -> Iterator[SoFile]:
 
 
 def parse_so_sync(sofile: SoFile):
-    funcs = get_exported_functions(sofile.data)
+    try:
+        funcs = get_exported_functions(sofile.data)
+    except Exception as e:
+        console = Console()
+        console.log(f"skip library {sofile.name}: {e}")
+        funcs = {}
     return {k: v for k, v in funcs.items() if k.startswith("Java_") or k in JNI_COMMON}
 
 
